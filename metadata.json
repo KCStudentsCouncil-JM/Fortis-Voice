@@ -1,0 +1,8 @@
+{
+  "name": "FORTIS VOICE",
+  "description": "A general-purpose petitions and civic issues platform where communities organize campaigns, gather verified support, and track official responses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

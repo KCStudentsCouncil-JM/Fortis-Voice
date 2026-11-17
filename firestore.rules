@@ -1,0 +1,470 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedAuth() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedAuth() && request.auth.token.email == 'kc.studentscouncil1@gmail.com';
+    }
+
+    function isModerator() {
+      return isBootstrappedAdmin() || (
+        isVerifiedAuth() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isApprovedMember() {
+      return isBootstrappedAdmin() || (
+        isVerifiedAuth() &&
+        exists(/databases/$(database)/documents/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.accountStatus == 'approved'
+      );
+    }
+
+    function isVerifiedOrganiserOrMod() {
+      return isModerator() || (
+        isApprovedMember() &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role == 'organiser'
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidMediaList(listVal, maxCount) {
+      return listVal is list && listVal.size() <= maxCount && (listVal.size() == 0 || listVal[0] is map);
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'grantedBy', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'grantedBy', 'createdAt']) &&
+        isValidId(data.uid) &&
+        data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128 &&
+        data.createdAt is string && data.createdAt.size() <= 40;
+    }
+
+    function isValidMember(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'accountStatus', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'uid', 'email', 'studentName', 'studentClass', 'grade', 'dateOfBirth',
+          'displayName', 'role', 'accountStatus',
+          'affiliation', 'bio', 'avatarId', 'avatarDataUrl',
+          'rejectionReason', 'appealNote', 'lastActiveAt', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+        (!('studentName' in data) || (data.studentName is string && data.studentName.size() <= 120)) &&
+        (!('studentClass' in data) || (data.studentClass is string && data.studentClass.size() <= 40)) &&
+        (!('grade' in data) || (data.grade is string && data.grade.size() <= 40)) &&
+        (!('dateOfBirth' in data) || (data.dateOfBirth is string && data.dateOfBirth.size() <= 20)) &&
+        data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
+        data.role in ['member', 'organiser', 'moderator'] &&
+        data.accountStatus in ['pending', 'approved', 'rejected'] &&
+        (!('affiliation' in data) || (data.affiliation is string && data.affiliation.size() <= 120)) &&
+        (!('bio' in data) || (data.bio is string && data.bio.size() <= 500)) &&
+        (!('avatarId' in data) || (data.avatarId is string && data.avatarId.size() <= 64)) &&
+        (!('avatarDataUrl' in data) || (data.avatarDataUrl is string && data.avatarDataUrl.size() <= 200000)) &&
+        (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() <= 500)) &&
+        (!('appealNote' in data) || (data.appealNote is string && data.appealNote.size() <= 500)) &&
+        (!('lastActiveAt' in data) || (data.lastActiveAt is string && data.lastActiveAt.size() <= 40)) &&
+        data.createdAt is string && data.createdAt.size() <= 40 &&
+        data.updatedAt is string && data.updatedAt.size() <= 40;
+    }
+
+    function isValidPetition(data) {
+      return data.keys().hasAll([
+          'id', 'referenceNumber', 'numericSeq', 'kind', 'title', 'summary', 'body',
+          'category', 'urgency', 'location', 'status', 'isAnonymous', 'authorId',
+          'authorDisplayName', 'goalSignatures', 'signatureCount', 'pinned',
+          'slaHours', 'slaDeadlineAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'referenceNumber', 'numericSeq', 'kind', 'title', 'summary', 'body',
+          'category', 'urgency', 'location', 'status', 'isAnonymous', 'authorId',
+          'authorDisplayName', 'authorAffiliation', 'goalSignatures', 'signatureCount',
+          'pinned', 'slaHours', 'slaDeadlineAt', 'respondedAt', 'moderationReason',
+          'lastActivityNote', 'media', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.referenceNumber is string && data.referenceNumber.size() >= 5 && data.referenceNumber.size() <= 20 &&
+        data.numericSeq is int && data.numericSeq >= 1 &&
+        data.kind in ['petition', 'campaign'] &&
+        data.title is string && data.title.size() >= 5 && data.title.size() <= 160 &&
+        data.summary is string && data.summary.size() >= 5 && data.summary.size() <= 260 &&
+        data.body is string && data.body.size() >= 10 && data.body.size() <= 10000 &&
+        data.category is string && data.category.size() >= 2 && data.category.size() <= 60 &&
+        data.urgency in ['urgent', 'standard', 'low'] &&
+        data.location is string && data.location.size() >= 2 && data.location.size() <= 120 &&
+        data.status in ['draft', 'pending_review', 'live', 'responded', 'achieved', 'closed', 'declined'] &&
+        data.isAnonymous is bool &&
+        isValidId(data.authorId) &&
+        data.authorDisplayName is string && data.authorDisplayName.size() >= 2 && data.authorDisplayName.size() <= 80 &&
+        (!data.isAnonymous || data.authorDisplayName in ['Anonymous student', 'Anonymous resident']) &&
+        (!('authorAffiliation' in data) || (data.authorAffiliation is string && data.authorAffiliation.size() <= 120)) &&
+        data.goalSignatures is int && data.goalSignatures >= 10 && data.goalSignatures <= 1000000 &&
+        data.signatureCount is int && data.signatureCount >= 0 &&
+        data.pinned is bool &&
+        data.slaHours is int && data.slaHours >= 1 && data.slaHours <= 720 &&
+        data.slaDeadlineAt is string && data.slaDeadlineAt.size() <= 40 &&
+        (!('respondedAt' in data) || (data.respondedAt is string && data.respondedAt.size() <= 40)) &&
+        (!('moderationReason' in data) || (data.moderationReason is string && data.moderationReason.size() <= 600)) &&
+        (!('lastActivityNote' in data) || (data.lastActivityNote is string && data.lastActivityNote.size() <= 200)) &&
+        (!('media' in data) || isValidMediaList(data.media, 4)) &&
+        data.createdAt is string && data.createdAt.size() <= 40 &&
+        data.updatedAt is string && data.updatedAt.size() <= 40;
+    }
+
+    function isValidSignature(data) {
+      return data.keys().hasAll(['userId', 'displayName', 'roleBadge', 'signedAt']) &&
+        data.keys().hasOnly(['userId', 'displayName', 'roleBadge', 'signedAt']) &&
+        isValidId(data.userId) &&
+        data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
+        data.roleBadge is string && data.roleBadge.size() >= 1 && data.roleBadge.size() <= 40 &&
+        data.signedAt is string && data.signedAt.size() <= 40;
+    }
+
+    function isValidActivityEntry(data) {
+      return data.keys().hasAll(['id', 'petitionId', 'kind', 'body', 'authorId', 'authorDisplayName', 'isAnonymousAuthor', 'createdAt']) &&
+        data.keys().hasOnly([
+          'id', 'petitionId', 'parentId', 'kind', 'body', 'authorId',
+          'authorDisplayName', 'authorRoleBadge', 'isAnonymousAuthor',
+          'triggeredStatus', 'media', 'createdAt'
+        ]) &&
+        isValidId(data.id) &&
+        isValidId(data.petitionId) &&
+        (!('parentId' in data) || (data.parentId is string && data.parentId.size() <= 128)) &&
+        data.kind in ['submission', 'comment', 'reply', 'official_response', 'organiser_update', 'moderator_decision', 'status_change', 'edit'] &&
+        data.body is string && data.body.size() >= 1 && data.body.size() <= 4000 &&
+        isValidId(data.authorId) &&
+        data.authorDisplayName is string && data.authorDisplayName.size() >= 2 && data.authorDisplayName.size() <= 80 &&
+        (!('authorRoleBadge' in data) || (data.authorRoleBadge is string && data.authorRoleBadge.size() <= 40)) &&
+        data.isAnonymousAuthor is bool &&
+        (!('triggeredStatus' in data) || (data.triggeredStatus is string && data.triggeredStatus.size() <= 40)) &&
+        (!('media' in data) || isValidMediaList(data.media, 3)) &&
+        data.createdAt is string && data.createdAt.size() <= 40;
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll([
+          'id', 'referenceNumber', 'title', 'description', 'category',
+          'location', 'startDate', 'endDate', 'timeLabel', 'organiserId',
+          'organiserName', 'rsvpCount', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'referenceNumber', 'title', 'description', 'category', 'tags',
+          'location', 'startDate', 'endDate', 'timeLabel', 'organiserId',
+          'organiserName', 'capacity', 'rsvpCount', 'promoVideoUrl', 'gallery',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.referenceNumber is string && data.referenceNumber.size() >= 5 && data.referenceNumber.size() <= 20 &&
+        data.title is string && data.title.size() >= 4 && data.title.size() <= 160 &&
+        data.description is string && data.description.size() >= 10 && data.description.size() <= 5000 &&
+        data.category is string && data.category.size() >= 2 && data.category.size() <= 60 &&
+        (!('tags' in data) || (data.tags is list && data.tags.size() <= 6 && (data.tags.size() == 0 || data.tags[0] is string))) &&
+        data.location is string && data.location.size() >= 2 && data.location.size() <= 140 &&
+        data.startDate is string && data.startDate.size() <= 32 &&
+        data.endDate is string && data.endDate.size() <= 32 &&
+        data.timeLabel is string && data.timeLabel.size() >= 2 && data.timeLabel.size() <= 80 &&
+        isValidId(data.organiserId) &&
+        data.organiserName is string && data.organiserName.size() >= 2 && data.organiserName.size() <= 80 &&
+        (!('capacity' in data) || (data.capacity is int && data.capacity >= 1 && data.capacity <= 100000)) &&
+        data.rsvpCount is int && data.rsvpCount >= 0 &&
+        (!('promoVideoUrl' in data) || (data.promoVideoUrl is string && data.promoVideoUrl.size() <= 500)) &&
+        (!('gallery' in data) || isValidMediaList(data.gallery, 6)) &&
+        data.createdAt is string && data.createdAt.size() <= 40 &&
+        data.updatedAt is string && data.updatedAt.size() <= 40;
+    }
+
+    function isValidRsvp(data) {
+      return data.keys().hasAll(['userId', 'displayName', 'createdAt']) &&
+        data.keys().hasOnly(['userId', 'displayName', 'createdAt']) &&
+        isValidId(data.userId) &&
+        data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
+        data.createdAt is string && data.createdAt.size() <= 40;
+    }
+
+    function isValidNotice(data) {
+      return data.keys().hasAll(['id', 'title', 'body', 'kind', 'pinned', 'authorId', 'authorDisplayName', 'totalVotes', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'title', 'body', 'kind', 'pinned', 'authorId', 'authorDisplayName', 'pollOptions', 'totalVotes', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.title is string && data.title.size() >= 4 && data.title.size() <= 160 &&
+        data.body is string && data.body.size() >= 4 && data.body.size() <= 4000 &&
+        data.kind in ['notice', 'alert', 'update', 'poll'] &&
+        data.pinned is bool &&
+        isValidId(data.authorId) &&
+        data.authorDisplayName is string && data.authorDisplayName.size() >= 2 && data.authorDisplayName.size() <= 80 &&
+        (!('pollOptions' in data) || isValidMediaList(data.pollOptions, 6)) &&
+        data.totalVotes is int && data.totalVotes >= 0 &&
+        data.createdAt is string && data.createdAt.size() <= 40 &&
+        data.updatedAt is string && data.updatedAt.size() <= 40;
+    }
+
+    function isValidPollVote(data) {
+      return data.keys().hasAll(['userId', 'optionId', 'updatedAt']) &&
+        data.keys().hasOnly(['userId', 'optionId', 'updatedAt']) &&
+        isValidId(data.userId) &&
+        data.optionId is string && data.optionId.size() >= 1 && data.optionId.size() <= 64 &&
+        data.updatedAt is string && data.updatedAt.size() <= 40;
+    }
+
+    match /test/connection {
+      allow get: if true;
+    }
+
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isModerator());
+      allow list: if isModerator();
+      allow create: if isValidId(userId) && (isModerator() || (isBootstrappedAdmin() && isOwner(userId))) && isValidAdminRecord(incoming());
+      allow delete: if isValidId(userId) && isModerator() && userId != request.auth.uid &&
+        (!exists(/databases/$(database)/documents/members/$(userId)) ||
+         get(/databases/$(database)/documents/members/$(userId)).data.email != 'kc.studentscouncil1@gmail.com');
+    }
+
+    match /members/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isModerator());
+      allow list: if isModerator();
+      allow create: if isValidId(userId) && isVerifiedAuth() && isOwner(userId) && isValidMember(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        (
+          (isBootstrappedAdmin() && incoming().role == 'moderator' && incoming().accountStatus == 'approved') ||
+          (incoming().role == 'member' && incoming().accountStatus == 'pending')
+        );
+      allow update: if isValidId(userId) && isVerifiedAuth() && isValidMember(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().email == existing().email &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (
+            existing().email == 'kc.studentscouncil1@gmail.com' &&
+            isBootstrappedAdmin() &&
+            incoming().role == 'moderator' &&
+            incoming().accountStatus == 'approved'
+          ) ||
+          (
+            existing().email != 'kc.studentscouncil1@gmail.com' &&
+            (
+              isModerator() ||
+              (
+                isOwner(userId) &&
+                incoming().role == existing().role &&
+                incoming().accountStatus == existing().accountStatus &&
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'studentName', 'studentClass', 'grade', 'dateOfBirth',
+                  'displayName', 'affiliation', 'bio', 'avatarId', 'avatarDataUrl',
+                  'appealNote', 'lastActiveAt', 'updatedAt'
+                ])
+              )
+            )
+          )
+        );
+      allow delete: if isValidId(userId) && isModerator() && userId != request.auth.uid &&
+        existing().email != 'kc.studentscouncil1@gmail.com';
+    }
+
+    match /petitions/{petitionId} {
+      allow get: if isValidId(petitionId) && (
+        existing().status in ['live', 'responded', 'achieved', 'closed'] ||
+        (isSignedIn() && existing().authorId == request.auth.uid) ||
+        isModerator()
+      );
+      allow list: if resource.data.status in ['live', 'responded', 'achieved', 'closed'] ||
+        (isSignedIn() && resource.data.authorId == request.auth.uid) ||
+        isModerator();
+      allow create: if isValidId(petitionId) && isApprovedMember() && isValidPetition(incoming()) &&
+        incoming().id == petitionId &&
+        incoming().authorId == request.auth.uid &&
+        incoming().signatureCount == 0 &&
+        incoming().pinned == false &&
+        (
+          isModerator() ||
+          (incoming().status in ['draft', 'pending_review'])
+        );
+      allow update: if isValidId(petitionId) && isVerifiedAuth() && isValidPetition(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          isModerator() ||
+          (
+            isApprovedMember() &&
+            existing().authorId == request.auth.uid &&
+            existing().status in ['draft', 'pending_review', 'declined'] &&
+            incoming().status in ['draft', 'pending_review'] &&
+            incoming().pinned == existing().pinned &&
+            incoming().signatureCount == existing().signatureCount &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'referenceNumber', 'kind', 'title', 'summary', 'body', 'category',
+              'urgency', 'location', 'status', 'isAnonymous', 'authorDisplayName',
+              'authorAffiliation', 'goalSignatures', 'slaHours', 'slaDeadlineAt',
+              'media', 'lastActivityNote', 'updatedAt'
+            ])
+          ) ||
+          (
+            isApprovedMember() &&
+            existing().status in ['live', 'responded'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['signatureCount', 'lastActivityNote', 'updatedAt']) &&
+            (
+              (
+                incoming().signatureCount == existing().signatureCount + 1 &&
+                !exists(/databases/$(database)/documents/petitions/$(petitionId)/signatures/$(request.auth.uid)) &&
+                existsAfter(/databases/$(database)/documents/petitions/$(petitionId)/signatures/$(request.auth.uid))
+              ) ||
+              (
+                incoming().signatureCount == existing().signatureCount - 1 &&
+                incoming().signatureCount >= 0 &&
+                exists(/databases/$(database)/documents/petitions/$(petitionId)/signatures/$(request.auth.uid)) &&
+                !existsAfter(/databases/$(database)/documents/petitions/$(petitionId)/signatures/$(request.auth.uid))
+              )
+            )
+          )
+        );
+      allow delete: if isValidId(petitionId) && (
+        isModerator() ||
+        (isApprovedMember() && existing().authorId == request.auth.uid && existing().status == 'draft')
+      );
+
+      match /signatures/{userId} {
+        allow get: if isValidId(petitionId) && isValidId(userId) &&
+          get(/databases/$(database)/documents/petitions/$(petitionId)).data.status in ['live', 'responded', 'achieved', 'closed'];
+        allow list: if get(/databases/$(database)/documents/petitions/$(petitionId)).data.status in ['live', 'responded', 'achieved', 'closed'] ||
+          isModerator();
+        allow create: if isValidId(petitionId) && isValidId(userId) && isApprovedMember() &&
+          userId == request.auth.uid &&
+          isValidSignature(incoming()) &&
+          incoming().userId == request.auth.uid &&
+          get(/databases/$(database)/documents/petitions/$(petitionId)).data.status in ['live', 'responded'];
+        allow delete: if isValidId(petitionId) && isValidId(userId) && isApprovedMember() &&
+          userId == request.auth.uid &&
+          get(/databases/$(database)/documents/petitions/$(petitionId)).data.status in ['live', 'responded'];
+      }
+
+      match /activity/{entryId} {
+        allow get: if isValidId(petitionId) && isValidId(entryId) && (
+          get(/databases/$(database)/documents/petitions/$(petitionId)).data.status in ['live', 'responded', 'achieved', 'closed'] ||
+          (isSignedIn() && get(/databases/$(database)/documents/petitions/$(petitionId)).data.authorId == request.auth.uid) ||
+          isModerator()
+        );
+        allow list: if get(/databases/$(database)/documents/petitions/$(petitionId)).data.status in ['live', 'responded', 'achieved', 'closed'] ||
+          (isSignedIn() && get(/databases/$(database)/documents/petitions/$(petitionId)).data.authorId == request.auth.uid) ||
+          isModerator();
+        allow create: if isValidId(petitionId) && isValidId(entryId) && isApprovedMember() &&
+          isValidActivityEntry(incoming()) &&
+          incoming().id == entryId &&
+          incoming().petitionId == petitionId &&
+          incoming().authorId == request.auth.uid &&
+          (
+            isModerator() ||
+            (incoming().kind == 'organiser_update' && isVerifiedOrganiserOrMod()) ||
+            (incoming().kind in ['submission', 'comment', 'reply', 'edit'])
+          );
+      }
+    }
+
+    match /events/{eventId} {
+      allow get: if isValidId(eventId);
+      allow list: if true;
+      allow create: if isValidId(eventId) && isVerifiedOrganiserOrMod() && isValidEvent(incoming()) &&
+        incoming().id == eventId &&
+        incoming().organiserId == request.auth.uid &&
+        incoming().rsvpCount == 0;
+      allow update: if isValidId(eventId) && isVerifiedAuth() && isValidEvent(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().organiserId == existing().organiserId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          isModerator() ||
+          (isVerifiedOrganiserOrMod() && existing().organiserId == request.auth.uid) ||
+          (
+            isApprovedMember() &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['rsvpCount', 'updatedAt']) &&
+            (
+              (
+                incoming().rsvpCount == existing().rsvpCount + 1 &&
+                (!('capacity' in existing()) || incoming().rsvpCount <= existing().capacity) &&
+                !exists(/databases/$(database)/documents/events/$(eventId)/rsvps/$(request.auth.uid)) &&
+                existsAfter(/databases/$(database)/documents/events/$(eventId)/rsvps/$(request.auth.uid))
+              ) ||
+              (
+                incoming().rsvpCount == existing().rsvpCount - 1 &&
+                incoming().rsvpCount >= 0 &&
+                exists(/databases/$(database)/documents/events/$(eventId)/rsvps/$(request.auth.uid)) &&
+                !existsAfter(/databases/$(database)/documents/events/$(eventId)/rsvps/$(request.auth.uid))
+              )
+            )
+          )
+        );
+      allow delete: if isValidId(eventId) && (
+        isModerator() ||
+        (isVerifiedOrganiserOrMod() && existing().organiserId == request.auth.uid)
+      );
+
+      match /rsvps/{userId} {
+        allow get: if isValidId(eventId) && isValidId(userId) && (isOwner(userId) || isModerator());
+        allow list: if isModerator() || (isSignedIn() && resource.data.userId == request.auth.uid);
+        allow create: if isValidId(eventId) && isValidId(userId) && isApprovedMember() &&
+          userId == request.auth.uid &&
+          isValidRsvp(incoming()) &&
+          incoming().userId == request.auth.uid;
+        allow delete: if isValidId(eventId) && isValidId(userId) && isApprovedMember() &&
+          userId == request.auth.uid;
+      }
+    }
+
+    match /notices/{noticeId} {
+      allow get: if isValidId(noticeId);
+      allow list: if true;
+      allow create: if isValidId(noticeId) && isModerator() && isValidNotice(incoming()) &&
+        incoming().id == noticeId &&
+        incoming().authorId == request.auth.uid;
+      allow update: if isValidId(noticeId) && isVerifiedAuth() && isValidNotice(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          isModerator() ||
+          (
+            isApprovedMember() &&
+            existing().kind == 'poll' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['pollOptions', 'totalVotes', 'updatedAt']) &&
+            existsAfter(/databases/$(database)/documents/notices/$(noticeId)/votes/$(request.auth.uid))
+          )
+        );
+      allow delete: if isValidId(noticeId) && isModerator();
+
+      match /votes/{userId} {
+        allow get: if isValidId(noticeId) && isValidId(userId) && (isOwner(userId) || isModerator());
+        allow list: if isModerator() || (isSignedIn() && resource.data.userId == request.auth.uid);
+        allow create, update: if isValidId(noticeId) && isValidId(userId) && isApprovedMember() &&
+          userId == request.auth.uid &&
+          isValidPollVote(incoming()) &&
+          incoming().userId == request.auth.uid;
+      }
+    }
+  }
+}

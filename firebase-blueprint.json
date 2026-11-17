@@ -1,0 +1,212 @@
+{
+  "entities": {
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Marker document granting moderator/administrator privileges to a verified user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "grantedBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "grantedBy", "createdAt"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "Private student/member identity, verification state, and profile metadata.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "studentName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "studentClass": { "type": "string", "maxLength": 40 },
+        "grade": { "type": "string", "maxLength": 40 },
+        "dateOfBirth": { "type": "string", "maxLength": 20 },
+        "displayName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "role": { "type": "string", "enum": ["member", "organiser", "moderator"] },
+        "accountStatus": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "affiliation": { "type": "string", "maxLength": 120 },
+        "bio": { "type": "string", "maxLength": 500 },
+        "avatarId": { "type": "string", "maxLength": 64 },
+        "avatarDataUrl": { "type": "string", "maxLength": 200000 },
+        "rejectionReason": { "type": "string", "maxLength": 500 },
+        "appealNote": { "type": "string", "maxLength": 500 },
+        "lastActiveAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role", "accountStatus", "createdAt", "updatedAt"]
+    },
+    "Petition": {
+      "title": "Petition",
+      "description": "Public or draft civic petition or community initiative.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "referenceNumber": { "type": "string", "minLength": 5, "maxLength": 20 },
+        "numericSeq": { "type": "integer" },
+        "kind": { "type": "string", "enum": ["petition", "campaign"] },
+        "title": { "type": "string", "minLength": 5, "maxLength": 160 },
+        "summary": { "type": "string", "minLength": 5, "maxLength": 260 },
+        "body": { "type": "string", "minLength": 10, "maxLength": 10000 },
+        "category": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "urgency": { "type": "string", "enum": ["urgent", "standard", "low"] },
+        "location": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "status": { "type": "string", "enum": ["draft", "pending_review", "live", "responded", "achieved", "closed", "declined"] },
+        "isAnonymous": { "type": "boolean" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorDisplayName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "authorAffiliation": { "type": "string", "maxLength": 120 },
+        "goalSignatures": { "type": "integer" },
+        "signatureCount": { "type": "integer" },
+        "pinned": { "type": "boolean" },
+        "slaHours": { "type": "integer" },
+        "slaDeadlineAt": { "type": "string", "format": "date-time" },
+        "respondedAt": { "type": "string", "format": "date-time" },
+        "moderationReason": { "type": "string", "maxLength": 600 },
+        "lastActivityNote": { "type": "string", "maxLength": 200 },
+        "media": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "referenceNumber", "numericSeq", "kind", "title", "summary", "body", "category", "urgency", "location", "status", "isAnonymous", "authorId", "authorDisplayName", "goalSignatures", "signatureCount", "pinned", "slaHours", "slaDeadlineAt", "createdAt", "updatedAt"]
+    },
+    "Signature": {
+      "title": "Signature",
+      "description": "Endorsement record keyed by member UID to guarantee uniqueness.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "roleBadge": { "type": "string", "maxLength": 40 },
+        "signedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "roleBadge", "signedAt"]
+    },
+    "ActivityEntry": {
+      "title": "ActivityEntry",
+      "description": "Chronological petition activity entry, comment, reply, official response, or moderation decision.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "petitionId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "parentId": { "type": "string", "maxLength": 128 },
+        "kind": { "type": "string", "enum": ["submission", "comment", "reply", "official_response", "organiser_update", "moderator_decision", "status_change", "edit"] },
+        "body": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorDisplayName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "authorRoleBadge": { "type": "string", "maxLength": 40 },
+        "isAnonymousAuthor": { "type": "boolean" },
+        "triggeredStatus": { "type": "string", "maxLength": 40 },
+        "media": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "petitionId", "kind", "body", "authorId", "authorDisplayName", "isAnonymousAuthor", "createdAt"]
+    },
+    "CampaignEvent": {
+      "title": "CampaignEvent",
+      "description": "Community campaign event supporting single-day and multi-day schedules.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "referenceNumber": { "type": "string", "minLength": 5, "maxLength": 20 },
+        "title": { "type": "string", "minLength": 4, "maxLength": 160 },
+        "description": { "type": "string", "minLength": 10, "maxLength": 5000 },
+        "category": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "tags": { "type": "array" },
+        "location": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "startDate": { "type": "string", "maxLength": 32 },
+        "endDate": { "type": "string", "maxLength": 32 },
+        "timeLabel": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "organiserId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "organiserName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "capacity": { "type": "integer" },
+        "rsvpCount": { "type": "integer" },
+        "promoVideoUrl": { "type": "string", "maxLength": 500 },
+        "gallery": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "referenceNumber", "title", "description", "category", "location", "startDate", "endDate", "timeLabel", "organiserId", "organiserName", "rsvpCount", "createdAt", "updatedAt"]
+    },
+    "EventRsvp": {
+      "title": "EventRsvp",
+      "description": "Member RSVP keyed by member UID.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "createdAt"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "description": "Community notice board announcement, alert, or poll.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 4, "maxLength": 160 },
+        "body": { "type": "string", "minLength": 4, "maxLength": 4000 },
+        "kind": { "type": "string", "enum": ["notice", "alert", "update", "poll"] },
+        "pinned": { "type": "boolean" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "authorDisplayName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "pollOptions": { "type": "array" },
+        "totalVotes": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "body", "kind", "pinned", "authorId", "authorDisplayName", "totalVotes", "createdAt", "updatedAt"]
+    },
+    "PollVote": {
+      "title": "PollVote",
+      "description": "One vote per member per community poll.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "optionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "optionId", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Moderator/admin registry documents."
+    },
+    "/members/{userId}": {
+      "schema": { "$ref": "#/entities/Member" },
+      "description": "Private member account records with PII isolation."
+    },
+    "/petitions/{petitionId}": {
+      "schema": { "$ref": "#/entities/Petition" },
+      "description": "Petitions and civic initiatives."
+    },
+    "/petitions/{petitionId}/signatures/{userId}": {
+      "schema": { "$ref": "#/entities/Signature" },
+      "description": "Unique endorsements per petition keyed by signer UID."
+    },
+    "/petitions/{petitionId}/activity/{entryId}": {
+      "schema": { "$ref": "#/entities/ActivityEntry" },
+      "description": "Chronological activity log, official responses, and comments."
+    },
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/CampaignEvent" },
+      "description": "Community campaign events."
+    },
+    "/events/{eventId}/rsvps/{userId}": {
+      "schema": { "$ref": "#/entities/EventRsvp" },
+      "description": "Unique event RSVPs keyed by member UID."
+    },
+    "/notices/{noticeId}": {
+      "schema": { "$ref": "#/entities/Notice" },
+      "description": "Community notice board posts and polls."
+    },
+    "/notices/{noticeId}/votes/{userId}": {
+      "schema": { "$ref": "#/entities/PollVote" },
+      "description": "Unique poll votes keyed by member UID."
+    }
+  }
+}
