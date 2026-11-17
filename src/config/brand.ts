@@ -1,3 +1,38 @@
+import heroCommonsImg from '@/src/assets/images/hero_civic_commons_1794875782385.jpg';
+import streetLightingImg from '@/src/assets/images/campaign_street_lighting_1794875782134.jpg';
+import communityGardenImg from '@/src/assets/images/campaign_community_garden_1794875782663.jpg';
+import accessibleTransitImg from '@/src/assets/images/campaign_accessible_transit_1794875782912.jpg';
+import townHallImg from '@/src/assets/images/event_town_hall_1794875783469.jpg';
+
+/**
+ * Resolves app-local asset paths (such as /kc-council-logo.png or legacy /src/assets/...)
+ * against Vite's configured BASE_URL so subpath hosting (e.g. GitHub Pages) works seamlessly.
+ */
+export function resolveAssetUrl(url: string): string {
+  if (!url) return url;
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+
+  const base = import.meta.env.BASE_URL || './';
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+
+  if (url.startsWith('./')) {
+    return `${normalizedBase}${url.slice(2)}`;
+  }
+
+  if (
+    url.startsWith('/src/assets/') ||
+    url.startsWith('/kc-council-logo') ||
+    url.startsWith('/assets/') ||
+    url.startsWith('/pwa-') ||
+    url.startsWith('/icon') ||
+    url.startsWith('/apple-touch-icon')
+  ) {
+    return `${normalizedBase}${url.slice(1)}`;
+  }
+
+  return url;
+}
+
 /**
  * Central brand configuration for Kingston College Students' Council.
  * Rename or re-configure platform identity strings in this single file.
@@ -9,7 +44,7 @@ export const BRAND_CONFIG = {
   fullName: "Kingston College Students' Council",
   schoolName: 'Kingston College, Jamaica',
   motto: 'Fortis Cadere Cedere Non Potest',
-  logoUrl: '/kc-council-logo.png',
+  logoUrl: resolveAssetUrl('kc-council-logo.png'),
   tagline: 'Student petitions, verified Fortis voices, and accountable council action.',
   mission:
     "The official student issues and petitions portal for Kingston College (North Street, Kingston, Jamaica). Raise school concerns, gather verified support, and track Council and Administration responses on the record.",
@@ -52,14 +87,14 @@ export type PetitionCategory = (typeof PETITION_CATEGORIES)[number];
 
 /**
  * Generated editorial imagery stored locally in /src/assets/images/.
- * Referenced as root-relative URLs and paired with resilient CSS fallbacks.
+ * Bundled via static ES imports so Vite applies the configured base path automatically.
  */
 export const CIVIC_IMAGES = {
-  heroCommons: '/src/assets/images/hero_civic_commons_1794875782385.jpg',
-  streetLighting: '/src/assets/images/campaign_street_lighting_1794875782134.jpg',
-  communityGarden: '/src/assets/images/campaign_community_garden_1794875782663.jpg',
-  accessibleTransit: '/src/assets/images/campaign_accessible_transit_1794875782912.jpg',
-  townHall: '/src/assets/images/event_town_hall_1794875783469.jpg',
+  heroCommons: heroCommonsImg,
+  streetLighting: streetLightingImg,
+  communityGarden: communityGardenImg,
+  accessibleTransit: accessibleTransitImg,
+  townHall: townHallImg,
 } as const;
 
 export interface PresetAvatar {

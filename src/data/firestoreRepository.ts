@@ -512,9 +512,17 @@ export class FirestoreRepository implements CivicRepository {
       await signInWithPopup(auth, googleProvider);
       return { ok: true };
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Google sign-in was cancelled or failed.';
+      if (msg.includes('auth/unauthorized-domain')) {
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+        return {
+          ok: false,
+          error: `Google Sign-In is not yet authorized for "${host}". Add "${host}" under Firebase Console → Authentication → Settings → Authorized domains, or switch to Local Demo Sandbox.`,
+        };
+      }
       return {
         ok: false,
-        error: err instanceof Error ? err.message : 'Google sign-in was cancelled or failed.',
+        error: msg,
       };
     }
   }

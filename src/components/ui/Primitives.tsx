@@ -13,6 +13,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
+import { resolveAssetUrl } from '@/src/config/brand';
 import type { MediaAttachment, PetitionStatus, PetitionUrgency, ToastMessage } from '@/src/types/civic';
 
 /** Always pairs semantic color with an icon and clear text label (never hue-only). */
@@ -272,8 +273,13 @@ export const ResilientImage: React.FC<{
   onClick?: () => void;
 }> = ({ src, alt, className = 'w-full h-48 object-cover', onClick }) => {
   const [failed, setFailed] = useState(false);
+  const resolvedSrc = resolveAssetUrl(src);
 
-  if (failed || !src) {
+  useEffect(() => {
+    setFailed(false);
+  }, [resolvedSrc]);
+
+  if (failed || !resolvedSrc) {
     return (
       <div
         className={`${className} flex flex-col items-center justify-center bg-gradient-to-br from-[#F2ECF8] to-[#E2D9EC] dark:from-[#26173A] dark:to-[#1B1029] text-[#5B506B] dark:text-[#B7A8CC] p-4 text-center`}
@@ -286,7 +292,7 @@ export const ResilientImage: React.FC<{
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
@@ -348,7 +354,7 @@ export const MediaGallery: React.FC<{
                 className="overflow-hidden rounded-xl border border-[#E2D9EC] dark:border-[#372352] bg-black"
               >
                 <video
-                  src={item.url}
+                  src={resolveAssetUrl(item.url)}
                   controls
                   playsInline
                   preload="metadata"
@@ -410,7 +416,7 @@ export const MediaGallery: React.FC<{
               <X className="w-5 h-5" aria-hidden="true" />
             </button>
             <img
-              src={lightboxItem.url}
+              src={resolveAssetUrl(lightboxItem.url)}
               alt={lightboxItem.caption || 'Full-size preview'}
               referrerPolicy="no-referrer"
               className="w-full max-h-[80vh] object-contain bg-black"

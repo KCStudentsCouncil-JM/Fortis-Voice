@@ -6,38 +6,49 @@ import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
+  const rawBase = process.env.VITE_BASE_PATH || './';
+  const basePath = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
+
   return {
+    base: basePath,
     plugins: [
       react(),
       tailwindcss(),
       VitePWA({
         registerType: 'prompt',
-        includeAssets: ['kc-council-logo.png', 'icon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+        includeAssets: [
+          'kc-council-logo.png',
+          'icon.svg',
+          'apple-touch-icon.png',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'pwa-maskable-512x512.png',
+        ],
         manifest: {
-          id: '/',
+          id: basePath,
           name: "Kingston College Students' Council",
           short_name: 'KC Council',
           description: 'Raise student petitions, gather verified Fortis support, and track official Council responses.',
           theme_color: '#5B1586',
           background_color: '#FAF8FC',
           display: 'standalone',
-          start_url: '/',
-          scope: '/',
+          start_url: basePath,
+          scope: basePath,
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: 'pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-512x512.png',
+              src: 'pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: 'pwa-maskable-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
@@ -47,15 +58,14 @@ export default defineConfig(() => {
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,woff,woff2}'],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+          navigateFallback: 'index.html',
         },
         devOptions: {
           enabled: false,
           type: 'module',
         },
       }),
-      // Copies src/assets into dist/ so root-relative URLs like
-      // "/src/assets/images/..." (e.g. generate_image output) still resolve
-      // in production builds. Do not remove.
+      // Copies src/assets into dist/ and generates 404.html SPA fallback for GitHub Pages.
       {
         name: 'copy-unbundled-src-assets',
         apply: 'build',
@@ -68,6 +78,11 @@ export default defineConfig(() => {
           const distAssets = path.resolve(distDir, 'src/assets');
           if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
             fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
+          }
+          const indexHtml = path.join(distDir, 'index.html');
+          const fallback404 = path.join(distDir, '404.html');
+          if (fs.existsSync(indexHtml)) {
+            fs.copyFileSync(indexHtml, fallback404);
           }
         },
       },
