@@ -6,8 +6,9 @@ import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
-  const rawBase = process.env.VITE_BASE_PATH || './';
-  const basePath = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
+  const rawBase = (process.env.VITE_BASE_PATH || './').trim();
+  const trimmedBase = rawBase.replace(/\/+$/, '');
+  const basePath = rawBase === './' ? './' : trimmedBase === '' ? '/' : `${trimmedBase}/`;
 
   return {
     base: basePath,
@@ -73,8 +74,8 @@ export default defineConfig(() => {
           if (error) {
             return;
           }
-          const distDir = path.resolve(__dirname, 'dist');
-          const srcAssets = path.resolve(__dirname, 'src/assets');
+          const distDir = path.resolve(import.meta.dirname, 'dist');
+          const srcAssets = path.resolve(import.meta.dirname, 'src/assets');
           const distAssets = path.resolve(distDir, 'src/assets');
           if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
             fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
@@ -89,7 +90,7 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     server: {
