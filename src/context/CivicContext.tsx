@@ -15,6 +15,7 @@ import type { AppView, FeedSortMode, ToastMessage } from '@/src/types/civic';
 import { getPermissions, type PermissionSet } from '@/src/utils/permissions';
 
 const BACKEND_MODE_KEY = 'kc_council_backend_mode_v1';
+const NAV_STORAGE_KEY = 'kc_council_nav_state_v1';
 
 interface NavigationState {
   view: AppView;
@@ -55,38 +56,64 @@ interface CivicContextValue {
 
 const CivicContext = createContext<CivicContextValue | null>(null);
 
+const VALID_VIEWS: AppView[] = [
+  'feed',
+  'petition',
+  'create',
+  'activity',
+  'drafts',
+  'events',
+  'notices',
+  'queue',
+  'directory',
+  'analytics',
+  'profile',
+  'auth',
+];
+
+const VALID_SORTS: FeedSortMode[] = ['newest', 'trending', 'most_signed', 'closing_soon'];
+
 function parseInitialRouteFromUrl(): NavigationState {
   if (typeof window === 'undefined') return { view: 'feed' };
   const params = new URLSearchParams(window.location.search);
   const viewParam = params.get('view') as AppView | null;
   const petitionId = params.get('id') || undefined;
+  const editingPetitionId = params.get('edit') || undefined;
   const searchQuery = params.get('q') || undefined;
   const categoryFilter = params.get('cat') || undefined;
   const sortParam = params.get('sort') as FeedSortMode | null;
-  const validSorts: FeedSortMode[] = ['newest', 'trending', 'most_signed', 'closing_soon'];
-  const sortMode = sortParam && validSorts.includes(sortParam) ? sortParam : 'newest';
-
-  const validViews: AppView[] = [
-    'feed',
-    'petition',
-    'create',
-    'activity',
-    'drafts',
-    'events',
-    'notices',
-    'queue',
-    'directory',
-    'analytics',
-    'profile',
-    'auth',
-  ];
+  const sortMode = sortParam && VALID_SORTS.includes(sortParam) ? sortParam : 'newest';
 
   if (petitionId && (!viewParam || viewParam === 'petition')) {
     return { view: 'petition', petitionId, searchQuery, categoryFilter, sortMode };
   }
-  if (viewParam && validViews.includes(viewParam)) {
-    return { view: viewParam, petitionId, searchQuery, categoryFilter, sortMode };
+  if (viewParam && VALID_VIEWS.includes(viewParam)) {
+    return {
+      view: viewParam,
+      petitionId,
+      editingPetitionId: viewParam === 'create' ? editingPetitionId : undefined,
+      searchQuery,
+      categoryFilter,
+      sortMode,
+    };
   }
+
+  // Fallback to sessionStorage if no explicit query route is present
+  try {
+    const raw = sessionStorage.getItem(NAV_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as NavigationState;
+      if (saved && VALID_VIEWS.includes(saved.view)) {
+        return {
+          ...saved,
+          sortMode: saved.sortMode && VALID_SORTS.includes(saved.sortMode) ? saved.sortMode : 'newest',
+        };
+      }
+    }
+  } catch {
+    // Ignore restricted sessionStorage
+  }
+
   return { view: 'feed', searchQuery, categoryFilter, sortMode };
 }
 
@@ -142,11 +169,14 @@ export const CivicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [repo]);
 
-  // Sync URL query parameters for shareable deep links without page reload
+  // Sync URL query parameters and sessionStorage for shareable deep links & navigation persistence
   useEffect(() => {
     const params = new URLSearchParams();
     if (nav.view !== 'feed') params.set('view', nav.view);
     if (nav.petitionId) params.set('id', nav.petitionId);
+    if (nav.view === 'create' && nav.editingPetitionId) {
+      params.set('edit', nav.editingPetitionId);
+    }
     if (nav.searchQuery?.trim()) params.set('q', nav.searchQuery.trim());
     if (nav.categoryFilter && nav.categoryFilter !== 'All') {
       params.set('cat', nav.categoryFilter);
@@ -157,6 +187,11 @@ export const CivicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const qs = params.toString();
     const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
     window.history.replaceState(null, '', nextUrl);
+    try {
+      sessionStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(nav));
+    } catch {
+      // Ignore storage failures
+    }
   }, [nav]);
 
   // Handle browser back/forward navigation
@@ -346,28 +381,51 @@ export const CivicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [hasSignedPetition, permissions.canSign, pushToast, snapshot.currentUser]
   );
 
-  const value: CivicContextValue = {
-    snapshot,
-    repo,
-    permissions,
-    backendMode,
-    firebaseAvailable: isFirebaseConfigured,
-    switchBackendMode,
-    nav,
-    navigate,
-    openPetition,
-    setSearchQuery,
-    setCategoryFilter,
-    setSortMode,
-    optimisticSignDelta,
-    toggleSignature,
-    hasSignedPetition,
-    getDisplaySignatureCount,
-    toasts,
-    pushToast,
-    dismissToast,
-    liveAnnouncement,
-  };
+  const value = useMemo<CivicContextValue>(
+    () => ({
+      snapshot,
+      repo,
+      permissions,
+      backendMode,
+      firebaseAvailable: isFirebaseConfigured,
+      switchBackendMode,
+      nav,
+      navigate,
+      openPetition,
+      setSearchQuery,
+      setCategoryFilter,
+      setSortMode,
+      optimisticSignDelta,
+      toggleSignature,
+      hasSignedPetition,
+      getDisplaySignatureCount,
+      toasts,
+      pushToast,
+      dismissToast,
+      liveAnnouncement,
+    }),
+    [
+      snapshot,
+      repo,
+      permissions,
+      backendMode,
+      switchBackendMode,
+      nav,
+      navigate,
+      openPetition,
+      setSearchQuery,
+      setCategoryFilter,
+      setSortMode,
+      optimisticSignDelta,
+      toggleSignature,
+      hasSignedPetition,
+      getDisplaySignatureCount,
+      toasts,
+      pushToast,
+      dismissToast,
+      liveAnnouncement,
+    ]
+  );
 
   return <CivicContext.Provider value={value}>{children}</CivicContext.Provider>;
 };

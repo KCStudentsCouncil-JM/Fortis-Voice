@@ -19,7 +19,7 @@ Official student petitions, verified Fortis voices, and accountable council acti
 
 ## Deploying to GitHub Pages
 
-This repository includes a pre-configured workflow (`.github/workflows/deploy-pages.yml`) and subpath-safe Vite build configuration (`base`, PWA manifest, relative assets, `.nojekyll`, and `404.html` fallback).
+This repository includes a pre-configured workflow (`.github/workflows/deploy.yml`) and subpath-safe Vite build configuration (`base`, PWA manifest, relative assets, `.nojekyll`, and `404.html` fallback).
 
 1. Push this repository to GitHub (default branch `main`).
 2. In GitHub, open **Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**.

@@ -10,20 +10,73 @@ import { downloadTextFile, validateBackupSnapshot } from '@/src/utils/export';
 import { compressAvatarFile } from '@/src/utils/media';
 import { formatRoleLabel, isPrimaryAdmin } from '@/src/utils/permissions';
 
+interface ProfileDraftCache {
+  studentName: string;
+  studentClass: string;
+  grade: string;
+  dateOfBirth: string;
+  displayName: string;
+  affiliation: string;
+  bio: string;
+  avatarId: string;
+  avatarDataUrl: string;
+}
+
+function getProfileDraftKey(uid: string): string {
+  return `kc_profile_draft_v1_${uid}`;
+}
+
+function readProfileDraft(uid?: string): ProfileDraftCache | null {
+  if (!uid) return null;
+  try {
+    const raw = sessionStorage.getItem(getProfileDraftKey(uid));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ProfileDraftCache;
+    return typeof parsed === 'object' && parsed !== null ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeProfileDraft(uid: string, draft: ProfileDraftCache): void {
+  try {
+    sessionStorage.setItem(getProfileDraftKey(uid), JSON.stringify(draft));
+  } catch {
+    try {
+      sessionStorage.setItem(
+        getProfileDraftKey(uid),
+        JSON.stringify({ ...draft, avatarDataUrl: '' })
+      );
+    } catch {
+      // Ignore storage quota errors
+    }
+  }
+}
+
+function clearProfileDraft(uid?: string): void {
+  if (!uid) return;
+  try {
+    sessionStorage.removeItem(getProfileDraftKey(uid));
+  } catch {
+    // Ignore
+  }
+}
+
 export const ProfileView: React.FC = () => {
   const { snapshot, repo, navigate, pushToast } = useCivic();
   const me = snapshot.currentUser;
+  const cachedDraft = readProfileDraft(me?.uid);
 
-  const [studentName, setStudentName] = useState(me?.studentName ?? '');
-  const [studentClass, setStudentClass] = useState(me?.studentClass ?? '');
-  const [grade, setGrade] = useState(me?.grade || KC_GRADES[0]);
-  const [dateOfBirth, setDateOfBirth] = useState(me?.dateOfBirth ?? '');
-  const [displayName, setDisplayName] = useState(me?.displayName ?? '');
-  const [affiliation, setAffiliation] = useState(me?.affiliation ?? '');
-  const [bio, setBio] = useState(me?.bio ?? '');
-  const [avatarId, setAvatarId] = useState(me?.avatarId ?? PRESET_AVATARS[0].id);
-  const [avatarDataUrl, setAvatarDataUrl] = useState(me?.avatarDataUrl ?? '');
-  const [isDirty, setIsDirty] = useState(false);
+  const [studentName, setStudentName] = useState(cachedDraft?.studentName ?? me?.studentName ?? '');
+  const [studentClass, setStudentClass] = useState(cachedDraft?.studentClass ?? me?.studentClass ?? '');
+  const [grade, setGrade] = useState(cachedDraft?.grade || me?.grade || KC_GRADES[0]);
+  const [dateOfBirth, setDateOfBirth] = useState(cachedDraft?.dateOfBirth ?? me?.dateOfBirth ?? '');
+  const [displayName, setDisplayName] = useState(cachedDraft?.displayName ?? me?.displayName ?? '');
+  const [affiliation, setAffiliation] = useState(cachedDraft?.affiliation ?? me?.affiliation ?? '');
+  const [bio, setBio] = useState(cachedDraft?.bio ?? me?.bio ?? '');
+  const [avatarId, setAvatarId] = useState(cachedDraft?.avatarId ?? me?.avatarId ?? PRESET_AVATARS[0].id);
+  const [avatarDataUrl, setAvatarDataUrl] = useState(cachedDraft?.avatarDataUrl ?? me?.avatarDataUrl ?? '');
+  const [isDirty, setIsDirty] = useState(Boolean(cachedDraft));
   const [busy, setBusy] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [formError, setFormError] = useState('');
@@ -34,6 +87,7 @@ export const ProfileView: React.FC = () => {
   const lastSyncedUpdatedAtRef = useRef<string | null>(me?.updatedAt ?? null);
 
   const hydrateFromMember = (member: NonNullable<typeof me>) => {
+    clearProfileDraft(member.uid);
     setStudentName(member.studentName ?? '');
     setStudentClass(member.studentClass ?? '');
     setGrade(member.grade || KC_GRADES[0]);
@@ -58,6 +112,22 @@ export const ProfileView: React.FC = () => {
       return;
     }
     if (hydratedUidRef.current !== me.uid) {
+      const draft = readProfileDraft(me.uid);
+      if (draft) {
+        hydratedUidRef.current = me.uid;
+        lastSyncedUpdatedAtRef.current = me.updatedAt ?? null;
+        setStudentName(draft.studentName);
+        setStudentClass(draft.studentClass);
+        setGrade(draft.grade || KC_GRADES[0]);
+        setDateOfBirth(draft.dateOfBirth);
+        setDisplayName(draft.displayName);
+        setAffiliation(draft.affiliation);
+        setBio(draft.bio);
+        setAvatarId(draft.avatarId || PRESET_AVATARS[0].id);
+        setAvatarDataUrl(draft.avatarDataUrl || '');
+        setIsDirty(true);
+        return;
+      }
       hydrateFromMember(me);
       return;
     }
@@ -65,6 +135,22 @@ export const ProfileView: React.FC = () => {
       hydrateFromMember(me);
     }
   }, [me, isDirty]);
+
+  // Persist dirty profile edits across navigation so unsaved changes are never lost
+  useEffect(() => {
+    if (!me || !isDirty) return;
+    writeProfileDraft(me.uid, {
+      studentName,
+      studentClass,
+      grade,
+      dateOfBirth,
+      displayName,
+      affiliation,
+      bio,
+      avatarId,
+      avatarDataUrl,
+    });
+  }, [me, isDirty, studentName, studentClass, grade, dateOfBirth, displayName, affiliation, bio, avatarId, avatarDataUrl]);
 
   if (!me) {
     return (
@@ -129,6 +215,7 @@ export const ProfileView: React.FC = () => {
         avatarDataUrl,
       });
       if (res.ok) {
+        clearProfileDraft(me.uid);
         setIsDirty(false);
         pushToast({ tone: 'success', title: 'Student profile updated' });
       } else {
