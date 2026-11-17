@@ -46,9 +46,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children, onOpenDocs }) => {
     snapshot,
     repo,
     permissions,
-    backendMode,
-    firebaseAvailable,
-    switchBackendMode,
     nav,
     navigate,
     setSearchQuery,
@@ -549,7 +546,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, onOpenDocs }) => {
                       className="w-full min-h-[44px] flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#261D33] dark:text-[#E7DFF2] hover:bg-[#F2ECF8] dark:hover:bg-[#26173A]"
                     >
                       <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-                      <span>Account &amp; Demo Modes</span>
+                      <span>Account &amp; Verification</span>
                     </button>
                     <button
                       type="button"
@@ -576,50 +573,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children, onOpenDocs }) => {
           </div>
         </div>
       </header>
-
-      {/* Explicit Fallback Mode Banner — never pretends client-side demo mode is secure */}
-      {backendMode === 'local' ? (
-        <div className="border-b border-purple-200/80 dark:border-[#372352] bg-gradient-to-r from-[#F4ECFC]/95 via-[#FAF6FE]/95 to-[#E9D7FA]/95 dark:bg-none dark:bg-[#1B1029] px-4 py-2 text-xs text-[#2B0B42] dark:text-[#E7DFF2]">
-          <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-2">
-            <p>
-              <strong>Local Demo Mode</strong> — running in browser storage with Kingston College sample accounts. Role switching is enabled for demonstration only and is not server-enforced.
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate({ view: 'auth' })}
-                className="underline font-semibold text-[#5B1586] dark:text-[#C084FC] hover:opacity-80 min-h-[32px] px-1"
-              >
-                Switch role / Sign up
-              </button>
-              {firebaseAvailable && (
-                <button
-                  type="button"
-                  onClick={() => switchBackendMode('firebase')}
-                  className="rounded-md border border-[#5B1586]/35 dark:border-[#C084FC]/40 px-2.5 py-1 font-semibold text-[#5B1586] dark:text-[#E9D5FF] hover:bg-white dark:hover:bg-[#26173A] transition-colors"
-                >
-                  Use Live Firebase
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="border-b border-[#0F766E]/25 bg-teal-50/70 dark:bg-teal-950/30 px-4 py-1.5 text-xs text-[#0F766E] dark:text-teal-200">
-          <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-2">
-            <p>
-              <strong>Live Firebase Mode</strong> — authenticated with Google Auth and enforced by Firestore Security Rules.
-            </p>
-            <button
-              type="button"
-              onClick={() => switchBackendMode('local')}
-              className="underline font-medium hover:opacity-80"
-            >
-              Switch to Local Demo Sandbox
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Main Layout: Collapsible Desktop Sidebar + Content */}
       <div className="flex-1 max-w-[1440px] w-full mx-auto flex">

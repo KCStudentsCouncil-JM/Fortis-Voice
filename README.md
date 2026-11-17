@@ -26,10 +26,10 @@ This repository includes a pre-configured workflow (`.github/workflows/deploy.ym
 3. The workflow automatically builds `dist/` with the repository's base path and publishes your site at `https://<your-username>.github.io/<repo-name>/`.
 4. **If using Live Firebase Mode on GitHub Pages**: open **Firebase Console → Authentication → Settings → Authorized domains** and add `<your-username>.github.io` so Google Sign-In works from your GitHub Pages URL.
 
-## Authentication & Persistence Modes
+## Authentication & Persistence
 
-- **Live Firebase Mode**: Uses `firebase-applet-config.json` with Firebase Google Authentication and Cloud Firestore enforced by `firestore.rules`.
-- **Local Demo Mode**: Browser-scoped fallback store (`LocalDemoRepository`) preloaded with Kingston College seed data and quick role previews (`Visitor`, `Member`, `Verified Organiser`, `Moderator`, `Pending`, `Rejected`). Local Demo Mode is explicitly labelled in the interface and is for demonstration only—not server-enforced security.
+- Uses `firebase-applet-config.json` with Firebase Google Authentication and Cloud Firestore enforced by `firestore.rules`.
+- Ensure your hosting domain (such as `<your-username>.github.io`) is added under **Firebase Console → Authentication → Settings → Authorized domains** for Google Sign-In.
 
 ## Customizing Platform Identity
 

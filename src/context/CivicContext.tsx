@@ -7,14 +7,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { isFirebaseConfigured } from '@/src/data/firebaseClient';
 import { FirestoreRepository } from '@/src/data/firestoreRepository';
-import { LocalDemoRepository } from '@/src/data/localRepository';
 import type { ActionResult, CivicRepository, CivicStoreSnapshot } from '@/src/data/repository';
 import type { AppView, FeedSortMode, ToastMessage } from '@/src/types/civic';
 import { getPermissions, type PermissionSet } from '@/src/utils/permissions';
 
-const BACKEND_MODE_KEY = 'kc_council_backend_mode_v1';
 const NAV_STORAGE_KEY = 'kc_council_nav_state_v1';
 
 interface NavigationState {
@@ -30,9 +27,6 @@ interface CivicContextValue {
   snapshot: CivicStoreSnapshot;
   repo: CivicRepository;
   permissions: PermissionSet;
-  backendMode: 'firebase' | 'local';
-  firebaseAvailable: boolean;
-  switchBackendMode: (mode: 'firebase' | 'local') => void;
 
   nav: NavigationState;
   navigate: (next: Partial<NavigationState> & { view: AppView }) => void;
@@ -117,29 +111,13 @@ function parseInitialRouteFromUrl(): NavigationState {
   return { view: 'feed', searchQuery, categoryFilter, sortMode };
 }
 
-function getInitialBackendMode(): 'firebase' | 'local' {
-  if (!isFirebaseConfigured) return 'local';
-  const stored = localStorage.getItem(BACKEND_MODE_KEY);
-  if (stored === 'firebase' || stored === 'local') return stored;
-  // Default to local demo sandbox on first visit so seed content & 4-role preview work immediately
-  // without requiring Google sign-in first; users can switch to Live Firebase anytime.
-  return 'local';
-}
-
-function createRepository(mode: 'firebase' | 'local'): CivicRepository {
-  return mode === 'firebase' && isFirebaseConfigured
-    ? new FirestoreRepository()
-    : new LocalDemoRepository();
-}
-
 export const CivicProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [backendMode, setBackendMode] = useState<'firebase' | 'local'>(getInitialBackendMode);
-  const [repo, setRepo] = useState<CivicRepository>(() => createRepository(getInitialBackendMode()));
+  const [repo] = useState<CivicRepository>(() => new FirestoreRepository());
   const repoRef = useRef<CivicRepository>(repo);
   repoRef.current = repo;
 
   const [snapshot, setSnapshot] = useState<CivicStoreSnapshot>({
-    mode: backendMode,
+    mode: 'firebase',
     ready: false,
     currentUser: null,
     members: [],
@@ -157,7 +135,7 @@ export const CivicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const [optimisticSignDelta, setOptimisticSignDelta] = useState<Record<string, boolean>>({});
 
-  // Subscribe to active repository and clean up on backend switch/unmount
+  // Subscribe to Firestore repository and clean up on unmount
   useEffect(() => {
     const unsub = repo.subscribe((nextSnap) => {
       setSnapshot(nextSnap);
@@ -228,33 +206,6 @@ export const CivicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }, 4800);
     },
     []
-  );
-
-  const switchBackendMode = useCallback(
-    (mode: 'firebase' | 'local') => {
-      if (mode === backendMode) return;
-      if (mode === 'firebase' && !isFirebaseConfigured) {
-        pushToast({
-          tone: 'error',
-          title: 'Firebase credentials unavailable',
-          description: 'Continuing in Local Demo Mode.',
-        });
-        return;
-      }
-      localStorage.setItem(BACKEND_MODE_KEY, mode);
-      setOptimisticSignDelta({});
-      setBackendMode(mode);
-      setRepo(createRepository(mode));
-      pushToast({
-        tone: 'info',
-        title: mode === 'firebase' ? 'Switched to Live Firebase Mode' : 'Switched to Local Demo Mode',
-        description:
-          mode === 'firebase'
-            ? 'Authenticated writes are enforced by Firestore Security Rules.'
-            : 'Data is stored locally in this browser for demonstration.',
-      });
-    },
-    [backendMode, pushToast]
   );
 
   const navigate = useCallback((next: Partial<NavigationState> & { view: AppView }) => {
@@ -386,9 +337,6 @@ export const CivicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       snapshot,
       repo,
       permissions,
-      backendMode,
-      firebaseAvailable: isFirebaseConfigured,
-      switchBackendMode,
       nav,
       navigate,
       openPetition,
@@ -408,8 +356,6 @@ export const CivicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       snapshot,
       repo,
       permissions,
-      backendMode,
-      switchBackendMode,
       nav,
       navigate,
       openPetition,

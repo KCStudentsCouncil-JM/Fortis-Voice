@@ -70,10 +70,10 @@ export const PlatformDocsModal: React.FC<{
 
           <section className="space-y-1.5">
             <h3 className="font-bold text-[#2B0B42] dark:text-[#F7F3FC]">
-              4. Live Firebase vs Local Demo Mode
+              4. Verified Accounts &amp; Server-Enforced Security
             </h3>
             <p className="text-xs sm:text-sm text-[#5B506B] dark:text-[#B7A8CC]">
-              In Live Firebase Mode, student accounts and permissions are enforced server-side via Firestore Security Rules and Google Authentication. Local Demo Mode runs inside browser storage so Kingston College reviewers can explore all four roles without provisioning external accounts; it is explicitly not a secure multi-user boundary.
+              Student accounts, petitions, signatures, and moderator actions are backed by Google Authentication and enforced server-side via Cloud Firestore Security Rules.
             </p>
           </section>
         </div>

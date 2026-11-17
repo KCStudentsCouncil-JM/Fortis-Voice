@@ -13,11 +13,10 @@ import type {
   PetitionUrgency,
   PollVote,
   SignatureRecord,
-  UserRole,
 } from '@/src/types/civic';
 
 export interface CivicStoreSnapshot {
-  mode: 'firebase' | 'local';
+  mode: 'firebase';
   ready: boolean;
   currentUser: Member | null;
   members: Member[];
@@ -75,28 +74,16 @@ export interface ActionResult<T = void> {
 }
 
 /**
- * Unified repository contract implemented by both FirestoreRepository
- * (live Firebase Auth + Firestore) and LocalDemoRepository (browser fallback).
+ * Repository contract implemented by FirestoreRepository (Firebase Auth + Cloud Firestore).
  * Components interact strictly through this interface.
  */
 export interface CivicRepository {
-  readonly mode: 'firebase' | 'local';
+  readonly mode: 'firebase';
   subscribe(listener: (snapshot: CivicStoreSnapshot) => void): () => void;
   destroy(): void;
 
   // Auth & onboarding
-  signInWithGoogle?(): Promise<ActionResult>;
-  signInDemo(emailOrRole: string): Promise<ActionResult<Member>>;
-  signUpDemo(input: {
-    studentName: string;
-    studentClass: string;
-    grade: string;
-    dateOfBirth: string;
-    displayName: string;
-    email: string;
-    affiliation?: string;
-  }): Promise<ActionResult<Member>>;
-  switchDemoRole?(role: UserRole): Promise<ActionResult>;
+  signInWithGoogle(): Promise<ActionResult>;
   signOut(): Promise<void>;
 
   // Profile & presence

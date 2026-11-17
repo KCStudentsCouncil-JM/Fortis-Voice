@@ -517,7 +517,7 @@ export class FirestoreRepository implements CivicRepository {
         const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
         return {
           ok: false,
-          error: `Google Sign-In is not yet authorized for "${host}". Add "${host}" under Firebase Console → Authentication → Settings → Authorized domains, or switch to Local Demo Sandbox.`,
+          error: `Google Sign-In is not yet authorized for "${host}". Add "${host}" under Firebase Console → Authentication → Settings → Authorized domains.`,
         };
       }
       return {
@@ -525,17 +525,6 @@ export class FirestoreRepository implements CivicRepository {
         error: msg,
       };
     }
-  }
-
-  async signInDemo(): Promise<ActionResult<Member>> {
-    return {
-      ok: false,
-      error: 'Demo sign-in is only active in Local Demo Mode. Use Google Sign-In or switch to Local Demo Sandbox.',
-    };
-  }
-
-  async signUpDemo(): Promise<ActionResult<Member>> {
-    return this.signInDemo();
   }
 
   async signOut(): Promise<void> {

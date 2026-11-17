@@ -13,32 +13,20 @@ import { ClassSelector } from '@/src/components/ui/ClassSelector';
 import { CommonGroundEmblem } from '@/src/components/ui/CivicGraphics';
 import { BRAND_CONFIG, KC_GRADES, PRIMARY_ADMIN_EMAIL } from '@/src/config/brand';
 import { useCivic } from '@/src/context/CivicContext';
-import type { UserRole } from '@/src/types/civic';
 
 export const OnboardingView: React.FC = () => {
-  const {
-    snapshot,
-    repo,
-    backendMode,
-    firebaseAvailable,
-    switchBackendMode,
-    navigate,
-    pushToast,
-  } = useCivic();
+  const { snapshot, repo, navigate, pushToast } = useCivic();
 
   const me = snapshot.currentUser;
-  const [authTab, setAuthTab] = useState<'signup' | 'signin'>('signup');
 
-  // Student Sign-up & Profile Completion fields
+  // Student Profile Completion fields
   const [studentName, setStudentName] = useState('');
   const [studentClass, setStudentClass] = useState('');
   const [grade, setGrade] = useState<string>(KC_GRADES[0]);
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
   const [affiliation, setAffiliation] = useState('');
 
-  const [signInEmail, setSignInEmail] = useState('');
   const [appealNote, setAppealNote] = useState('');
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -121,94 +109,6 @@ export const OnboardingView: React.FC = () => {
       setFormError(err instanceof Error ? err.message : 'Could not save student details.');
     } finally {
       setBusy(false);
-    }
-  };
-
-  const handleDemoSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (busy) return;
-    setFormError('');
-    if (studentName.trim().length < 2) {
-      setFormError("Please enter the student's full name.");
-      return;
-    }
-    if (!grade) {
-      setFormError('Please select a grade / form level.');
-      return;
-    }
-    if (studentClass.trim().length < 1) {
-      setFormError('Please select or enter your class / form.');
-      return;
-    }
-    if (!dateOfBirth) {
-      setFormError('Please enter your date of birth (D.O.B.).');
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await repo.signUpDemo({
-        studentName,
-        studentClass,
-        grade,
-        dateOfBirth,
-        displayName: displayName.trim() || studentName.trim(),
-        email,
-        affiliation,
-      });
-      if (!res.ok) {
-        setFormError(res.error || 'Could not create student account.');
-        return;
-      }
-      setIsDirty(false);
-      pushToast({
-        tone: 'success',
-        title: 'Student account submitted for verification',
-        description: 'Council moderators review new student registrations before unlocking signing.',
-      });
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not create student account.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleDemoSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (busy) return;
-    setFormError('');
-    setBusy(true);
-    try {
-      const res = await repo.signInDemo(signInEmail);
-      if (!res.ok) {
-        setFormError(res.error || 'Account not found.');
-        return;
-      }
-      pushToast({
-        tone: 'success',
-        title: `Signed in as ${res.data?.displayName}`,
-      });
-      if (res.data?.accountStatus === 'approved') {
-        navigate({ view: 'feed' });
-      }
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not sign in.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleQuickRole = async (roleKey: string, label: string) => {
-    setFormError('');
-    const res = await repo.signInDemo(roleKey);
-    if (res.ok) {
-      pushToast({
-        tone: 'info',
-        title: `Demo role active: ${label}`,
-        description: `Signed in as ${res.data?.displayName}`,
-      });
-      if (res.data?.accountStatus === 'approved') {
-        navigate({ view: 'feed' });
-      }
     }
   };
 
@@ -399,21 +299,6 @@ export const OnboardingView: React.FC = () => {
               <span>Sign out</span>
             </button>
           </div>
-
-          {backendMode === 'local' && (
-            <div className="mt-6 pt-5 border-t border-[#E2D9EC] dark:border-[#372352]">
-              <p className="text-xs text-[#5B506B] dark:text-[#B7A8CC]">
-                Demo tip: Switch to the <strong>Council Moderator</strong> demo account below to approve this pending student registration in the Student Directory.
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleQuickRole('moderator', 'Council Moderator')}
-                className="mt-2 min-h-[44px] rounded-lg bg-[#F2ECF8] dark:bg-[#26173A] px-3.5 py-2 text-xs font-semibold text-[#460E69] dark:text-[#E9D5FF]"
-              >
-                Switch to Moderator demo account
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -521,25 +406,10 @@ export const OnboardingView: React.FC = () => {
           <div className="flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-[#5B1586] dark:text-[#C084FC] shrink-0 mt-0.5" aria-hidden="true" />
             <div>
-              <p className="font-semibold text-[#2B0B42] dark:text-[#F7F3FC]">Active data backend</p>
+              <p className="font-semibold text-[#2B0B42] dark:text-[#F7F3FC]">Server-enforced security</p>
               <p className="text-xs text-[#5B506B] dark:text-[#B7A8CC] leading-relaxed">
-                {backendMode === 'firebase'
-                  ? 'Live Firebase Mode is active (Google Authentication + Firestore Security Rules).'
-                  : 'Local Demo Mode is active (browser storage with sample Kingston College student accounts for testing all 4 roles).'}
+                Authenticated with Google Sign-In and enforced by Cloud Firestore Security Rules.
               </p>
-              {firebaseAvailable && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    switchBackendMode(backendMode === 'firebase' ? 'local' : 'firebase')
-                  }
-                  className="mt-1.5 text-xs font-semibold text-[#5B1586] dark:text-[#C084FC] underline"
-                >
-                  {backendMode === 'firebase'
-                    ? 'Switch to Local Demo Sandbox'
-                    : 'Switch to Live Firebase Auth'}
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -547,388 +417,141 @@ export const OnboardingView: React.FC = () => {
 
       {/* Right: Auth Card */}
       <section className="lg:col-span-7 rounded-2xl bg-white/95 dark:bg-[#1B1029] border border-[#DFD1EE] dark:border-[#372352] shadow-xs p-6 sm:p-8">
-        {backendMode === 'firebase' ? (
-          <div className="space-y-5">
-            <h2 className="text-xl font-bold text-[#2B0B42] dark:text-[#F7F3FC]">
-              {me ? `Signed in as ${me.displayName}` : 'Sign in with Google'}
-            </h2>
-            <p className="text-sm text-[#5B506B] dark:text-[#B7A8CC]">
-              Live Firebase mode uses verified Google accounts enforced by Firestore Security Rules. Signing in with <strong>{PRIMARY_ADMIN_EMAIL}</strong> automatically grants Main Administrator access; students complete their details so Council moderators can verify enrolment.
-            </p>
-            {formError && (
-              <div className="rounded-lg border border-rose-300 bg-rose-50 dark:bg-rose-950/40 p-3 text-sm text-rose-800 dark:text-rose-200">
-                {formError}
-              </div>
-            )}
-            {!me ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void handleGoogleSignIn()}
-                className="min-h-[48px] w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-lg bg-[#5B1586] hover:bg-[#460E69] dark:bg-[#7E22CE] dark:hover:bg-[#9333EA] px-6 py-3 text-sm font-semibold text-white transition-colors"
-              >
-                <UserPlus className="w-4 h-4" aria-hidden="true" />
-                <span>{busy ? 'Opening Google Sign-In…' : 'Continue with Google'}</span>
-              </button>
-            ) : (
-              <form onSubmit={handleCompleteFirebaseStudentProfile} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label htmlFor="fb-student-name" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
-                      Student&apos;s Full Name
-                    </label>
-                    <input
-                      id="fb-student-name"
-                      type="text"
-                      required
-                      value={studentName}
-                      onChange={(e) => { setStudentName(e.target.value); setIsDirty(true); }}
-                      placeholder="e.g. Dante Williams"
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="fb-display-name" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
-                      Display Name
-                    </label>
-                    <input
-                      id="fb-display-name"
-                      type="text"
-                      required
-                      value={displayName}
-                      onChange={(e) => { setDisplayName(e.target.value); setIsDirty(true); }}
-                      placeholder="e.g. Dante W."
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="fb-grade" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
-                      Grade / Form
-                    </label>
-                    <select
-                      id="fb-grade"
-                      value={grade}
-                      onChange={(e) => { setGrade(e.target.value); setIsDirty(true); }}
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
-                    >
-                      {KC_GRADES.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="fb-class" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
-                      Class
-                    </label>
-                    <ClassSelector
-                      id="fb-class"
-                      required
-                      value={studentClass}
-                      onChange={(val) => { setStudentClass(val); setIsDirty(true); }}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="fb-dob" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
-                      Date of Birth (D.O.B.)
-                    </label>
-                    <input
-                      id="fb-dob"
-                      type="date"
-                      required
-                      value={dateOfBirth}
-                      onChange={(e) => { setDateOfBirth(e.target.value); setIsDirty(true); }}
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="fb-affiliation" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
-                      House / Club (optional)
-                    </label>
-                    <input
-                      id="fb-affiliation"
-                      type="text"
-                      value={affiliation}
-                      onChange={(e) => { setAffiliation(e.target.value); setIsDirty(true); }}
-                      placeholder="e.g. Gibson House"
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="submit"
-                    disabled={busy}
-                    className="min-h-[44px] inline-flex items-center gap-2 rounded-lg bg-[#5B1586] hover:bg-[#460E69] px-5 py-2 text-sm font-semibold text-white"
-                  >
-                    <Save className="w-4 h-4" aria-hidden="true" />
-                    <span>Save Student Profile</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate({ view: 'profile' })}
-                    className="min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] px-4 py-2 text-sm font-medium"
-                  >
-                    Full Profile Settings
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void repo.signOut()}
-                    className="min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] px-4 py-2 text-sm font-medium text-[#5B506B] dark:text-[#B7A8CC]"
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Tabs */}
-            <div className="inline-flex rounded-lg bg-[#F2ECF8] dark:bg-[#26173A] p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthTab('signup');
-                  setFormError('');
-                }}
-                className={`min-h-[40px] rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                  authTab === 'signup'
-                    ? 'bg-white dark:bg-[#1B1029] text-[#2B0B42] dark:text-[#F7F3FC] shadow-xs'
-                    : 'text-[#5B506B] dark:text-[#B7A8CC]'
-                }`}
-              >
-                Student Sign Up
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthTab('signin');
-                  setFormError('');
-                }}
-                className={`min-h-[40px] rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                  authTab === 'signin'
-                    ? 'bg-white dark:bg-[#1B1029] text-[#2B0B42] dark:text-[#F7F3FC] shadow-xs'
-                    : 'text-[#5B506B] dark:text-[#B7A8CC]'
-                }`}
-              >
-                Sign in
-              </button>
+        <div className="space-y-5">
+          <h2 className="text-xl font-bold text-[#2B0B42] dark:text-[#F7F3FC]">
+            {me ? `Signed in as ${me.displayName}` : 'Sign in with Google'}
+          </h2>
+          <p className="text-sm text-[#5B506B] dark:text-[#B7A8CC]">
+            Sign in with your verified Google account. Signing in with <strong>{PRIMARY_ADMIN_EMAIL}</strong> grants Main Administrator access; students complete their details so Council moderators can verify enrolment.
+          </p>
+          {formError && (
+            <div className="rounded-lg border border-rose-300 bg-rose-50 dark:bg-rose-950/40 p-3 text-sm text-rose-800 dark:text-rose-200">
+              {formError}
             </div>
-
-            {authTab === 'signup' ? (
-              <form onSubmit={handleDemoSignUp} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      htmlFor="signup-student-name"
-                      className="block text-sm font-medium text-[#2B0B42] dark:text-[#F7F3FC] mb-1"
-                    >
-                      Student&apos;s Full Name
-                    </label>
-                    <input
-                      id="signup-student-name"
-                      type="text"
-                      required
-                      value={studentName}
-                      onChange={(e) => setStudentName(e.target.value)}
-                      placeholder="e.g. Dante Williams"
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3.5 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="signup-name"
-                      className="block text-sm font-medium text-[#2B0B42] dark:text-[#F7F3FC] mb-1"
-                    >
-                      Display Name
-                    </label>
-                    <input
-                      id="signup-name"
-                      type="text"
-                      required
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="e.g. Dante W."
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3.5 py-2"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label
-                      htmlFor="signup-grade"
-                      className="block text-sm font-medium text-[#2B0B42] dark:text-[#F7F3FC] mb-1"
-                    >
-                      Grade
-                    </label>
-                    <select
-                      id="signup-grade"
-                      required
-                      value={grade}
-                      onChange={(e) => setGrade(e.target.value)}
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
-                    >
-                      {KC_GRADES.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="signup-class"
-                      className="block text-sm font-medium text-[#2B0B42] dark:text-[#F7F3FC] mb-1"
-                    >
-                      Class / Form
-                    </label>
-                    <ClassSelector
-                      id="signup-class"
-                      required
-                      value={studentClass}
-                      onChange={setStudentClass}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="signup-dob"
-                      className="block text-sm font-medium text-[#2B0B42] dark:text-[#F7F3FC] mb-1"
-                    >
-                      D.O.B.
-                    </label>
-                    <input
-                      id="signup-dob"
-                      type="date"
-                      required
-                      value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      htmlFor="signup-email"
-                      className="block text-sm font-medium text-[#2B0B42] dark:text-[#F7F3FC] mb-1"
-                    >
-                      Email address
-                    </label>
-                    <input
-                      id="signup-email"
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="student@kc.edu.jm"
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3.5 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="signup-affiliation"
-                      className="block text-sm font-medium text-[#2B0B42] dark:text-[#F7F3FC] mb-1"
-                    >
-                      House, club, or society (optional)
-                    </label>
-                    <input
-                      id="signup-affiliation"
-                      type="text"
-                      value={affiliation}
-                      onChange={(e) => setAffiliation(e.target.value)}
-                      placeholder="e.g. Chapel House · Key Club"
-                      className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3.5 py-2"
-                    />
-                  </div>
-                </div>
-
-                {formError && (
-                  <p role="alert" className="text-sm font-medium text-rose-700 dark:text-rose-300">
-                    {formError}
-                  </p>
-                )}
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="min-h-[44px] rounded-lg bg-[#5B1586] hover:bg-[#460E69] dark:bg-[#7E22CE] dark:hover:bg-[#9333EA] px-5 py-2.5 text-sm font-semibold text-white transition-colors"
-                >
-                  Request verification &amp; join
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleDemoSignIn} className="space-y-4">
+          )}
+          {!me ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleGoogleSignIn()}
+              className="min-h-[48px] w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-lg bg-[#5B1586] hover:bg-[#460E69] dark:bg-[#7E22CE] dark:hover:bg-[#9333EA] px-6 py-3 text-sm font-semibold text-white transition-colors"
+            >
+              <UserPlus className="w-4 h-4" aria-hidden="true" />
+              <span>{busy ? 'Opening Google Sign-In…' : 'Continue with Google'}</span>
+            </button>
+          ) : (
+            <form onSubmit={handleCompleteFirebaseStudentProfile} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label
-                    htmlFor="signin-email"
-                    className="block text-sm font-medium text-[#2B0B42] dark:text-[#F7F3FC] mb-1"
-                  >
-                    Registered student email
+                  <label htmlFor="fb-student-name" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
+                    Student&apos;s Full Name
                   </label>
                   <input
-                    id="signin-email"
-                    type="email"
+                    id="fb-student-name"
+                    type="text"
                     required
-                    value={signInEmail}
-                    onChange={(e) => setSignInEmail(e.target.value)}
-                    placeholder="dante.williams@kc.edu.jm"
-                    className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3.5 py-2"
+                    value={studentName}
+                    onChange={(e) => { setStudentName(e.target.value); setIsDirty(true); }}
+                    placeholder="e.g. Dante Williams"
+                    className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
                   />
                 </div>
-                {formError && (
-                  <p role="alert" className="text-sm font-medium text-rose-700 dark:text-rose-300">
-                    {formError}
-                  </p>
-                )}
+                <div>
+                  <label htmlFor="fb-display-name" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
+                    Display Name
+                  </label>
+                  <input
+                    id="fb-display-name"
+                    type="text"
+                    required
+                    value={displayName}
+                    onChange={(e) => { setDisplayName(e.target.value); setIsDirty(true); }}
+                    placeholder="e.g. Dante W."
+                    className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="fb-grade" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
+                    Grade / Form
+                  </label>
+                  <select
+                    id="fb-grade"
+                    value={grade}
+                    onChange={(e) => { setGrade(e.target.value); setIsDirty(true); }}
+                    className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
+                  >
+                    {KC_GRADES.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="fb-class" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
+                    Class
+                  </label>
+                  <ClassSelector
+                    id="fb-class"
+                    required
+                    value={studentClass}
+                    onChange={(val) => { setStudentClass(val); setIsDirty(true); }}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="fb-dob" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
+                    Date of Birth (D.O.B.)
+                  </label>
+                  <input
+                    id="fb-dob"
+                    type="date"
+                    required
+                    value={dateOfBirth}
+                    onChange={(e) => { setDateOfBirth(e.target.value); setIsDirty(true); }}
+                    className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="fb-affiliation" className="block text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC] mb-1">
+                    House / Club (optional)
+                  </label>
+                  <input
+                    id="fb-affiliation"
+                    type="text"
+                    value={affiliation}
+                    onChange={(e) => { setAffiliation(e.target.value); setIsDirty(true); }}
+                    placeholder="e.g. Gibson House"
+                    className="w-full min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] bg-[#FAF8FC] dark:bg-[#120A1C] px-3 py-2"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="submit"
                   disabled={busy}
-                  className="min-h-[44px] rounded-lg bg-[#5B1586] hover:bg-[#460E69] dark:bg-[#7E22CE] dark:hover:bg-[#9333EA] px-5 py-2.5 text-sm font-semibold text-white transition-colors"
+                  className="min-h-[44px] inline-flex items-center gap-2 rounded-lg bg-[#5B1586] hover:bg-[#460E69] px-5 py-2 text-sm font-semibold text-white"
                 >
-                  Sign in
+                  <Save className="w-4 h-4" aria-hidden="true" />
+                  <span>Save Student Profile</span>
                 </button>
-              </form>
-            )}
-
-            {/* Quick Role Switcher for Demo Evaluation */}
-            <div className="pt-5 border-t border-[#E2D9EC] dark:border-[#372352]">
-              <p className="text-xs font-semibold text-[#2B0B42] dark:text-[#F7F3FC]">
-                Quick student role preview (Local Demo Mode)
-              </p>
-              <p className="mt-0.5 text-xs text-[#5B506B] dark:text-[#B7A8CC]">
-                Inspect every permission tier immediately without creating test accounts by hand.
-              </p>
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {(
-                  [
-                    { key: 'member', label: 'Verified Student', sub: 'Dante Williams (Gibson) · Sign, comment, draft' },
-                    { key: 'organiser', label: 'Prefect / Organiser', sub: 'Tajay Reid (Science) · Updates & events' },
-                    { key: 'moderator', label: 'Main Administrator', sub: `${PRIMARY_ADMIN_EMAIL} · Full council control` },
-                    { key: 'pending', label: 'Pending Student', sub: 'Javelle Brown (Forrest) · Under review state' },
-                    { key: 'rejected', label: 'Rejected Student', sub: 'Kyle Bennett · Appeal flow' },
-                  ] as Array<{ key: UserRole | 'pending' | 'rejected'; label: string; sub: string }>
-                ).map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => void handleQuickRole(item.key, item.label)}
-                    className="min-h-[48px] text-left rounded-xl border border-[#E2D9EC] dark:border-[#372352] px-3.5 py-2.5 hover:bg-[#F2ECF8] dark:hover:bg-[#26173A] transition-colors"
-                  >
-                    <p className="text-sm font-semibold text-[#2B0B42] dark:text-[#F7F3FC]">
-                      {item.label}
-                    </p>
-                    <p className="text-xs text-[#5B506B] dark:text-[#B7A8CC] truncate">
-                      {item.sub}
-                    </p>
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => navigate({ view: 'profile' })}
+                  className="min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] px-4 py-2 text-sm font-medium"
+                >
+                  Full Profile Settings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void repo.signOut()}
+                  className="min-h-[44px] rounded-lg border border-[#E2D9EC] dark:border-[#372352] px-4 py-2 text-sm font-medium text-[#5B506B] dark:text-[#B7A8CC]"
+                >
+                  Sign out
+                </button>
               </div>
-            </div>
-          </div>
-        )}
+            </form>
+          )}
+        </div>
       </section>
     </div>
   );
